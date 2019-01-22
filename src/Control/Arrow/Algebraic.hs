@@ -126,6 +126,11 @@ instance ArrowChoice (Algebraic a) where
   (+++) = Choice
 
 
+
+symbol :: Int -> Computation a b
+symbol = Symbol
+
+
 data Computation a b where
 
   Symbol :: Int -> Computation a b
@@ -142,11 +147,6 @@ data Computation a b where
 
   PropZero :: Computation a b
   PropPlus :: Computation a b -> Computation a b -> Computation a b
-
-
-
-symbol :: Int -> Computation a b
-symbol = Symbol
 
 
 cast :: Computation a b -> Computation c d
