@@ -203,3 +203,27 @@ instance Eq (Computation a b) where
 
   _ == _ = False
 
+
+instance Show (Computation a b) where
+  show (Symbol x) = show x
+  show PropId = "id"
+  show (Append f g) = unwords [paren g, ">>>", paren f]
+  show (First  f) = unwords ["first", paren f]
+  show (Second f) = unwords ["second", paren f]
+  show (PropSplit f g) = unwords [paren f, "***", paren g]
+  show PropZero = "zeroArrow"
+  show (PropPlus f g) = unwords [paren f, "<+>", paren g]
+  show (PropChoice f g) = unwords [paren f, "+++", paren g]
+
+paren :: Computation a b -> String
+paren (Symbol 1) = "a"
+paren (Symbol 2) = "b"
+paren (Symbol 3) = "c"
+paren (Symbol 4) = "d"
+paren (Symbol 5) = "e"
+paren (Symbol 6) = "f"
+paren (Symbol 7) = "g"
+paren (Symbol 8) = "h"
+paren (Symbol 9) = "i"
+paren (Symbol x) = show x
+paren x = "(" ++ show x ++ ")"
