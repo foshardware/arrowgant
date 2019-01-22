@@ -4,7 +4,7 @@ import Control.Arrow
 import Control.Arrow.Transformer
 import Prelude hiding (id, (.))
 
-import Lib
+import Control.Arrow.Algebraic
 
 main :: IO ()
 main = pure ()

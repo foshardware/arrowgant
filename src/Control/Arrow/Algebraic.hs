@@ -4,7 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Lib where
+module Control.Arrow.Algebraic where
 
 import Control.Arrow
 import Control.Arrow.Transformer
