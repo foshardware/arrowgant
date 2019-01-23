@@ -9,55 +9,75 @@ module Control.Arrow.Algebraic where
 import Control.Arrow
 import Control.Arrow.Transformer
 import Control.Category
+import Control.Monad.Writer (Writer(..), tell, runWriter)
 import Prelude hiding (id, (.))
 
 
 mapReduce :: Arrow a => Algebraic a b c -> Algebraic a b c
+mapReduce f = case runWriter $ resolvePar f of
+  (g, Found) -> mapReduce g
+  (g, _) -> g
 
-mapReduce Id       = id
-mapReduce (Lift e) = Lift e
-mapReduce (Pure f) = arr f
+
+data Found = Found | NotFound
+
+instance Semigroup Found where
+  Found <> _ = Found
+  _ <> Found = Found
+  _ <> _ = NotFound
+
+instance Monoid Found where
+  mempty = NotFound
+  mappend = (<>)
+
+
+resolvePar :: Arrow a => Algebraic a b c -> Writer Found (Algebraic a b c)
+
+resolvePar Id       = pure id
+resolvePar (Lift e) = pure $ lift e
+resolvePar (Pure f) = pure $ arr f
 
 -- id . f = f
 -- f . id = f
-mapReduce (Comp Id f) = mapReduce f
-mapReduce (Comp f Id) = mapReduce f
+resolvePar (Comp Id f) = resolvePar f
+resolvePar (Comp f Id) = resolvePar f
 
 -- arr g . arr f = arr (g . f)
-mapReduce (Comp (Pure f) (Pure g)) = mapReduce (Pure (g . f))
+resolvePar (Comp (Pure f) (Pure g)) = resolvePar (Pure (g . f))
 
 -- first f >>> second g = f *** g
 -- second g >>> first f = f *** g
-mapReduce (Comp (Fst f) (Snd g)) = mapReduce (Split f g)
-mapReduce (Comp (Snd g) (Fst f)) = mapReduce (Split f g)
+resolvePar (Comp (Fst f) (Snd g)) = resolvePar (Split f g) <* tell Found
+resolvePar (Comp (Snd g) (Fst f)) = resolvePar (Split f g) <* tell Found
 
 -- first f >>> first g = first (f >>> g)
 -- second f >>> second g = second (f >>> g)
-mapReduce (Comp (Fst f) (Fst g)) = mapReduce (Fst (Comp f g))
-mapReduce (Comp (Snd f) (Snd g)) = mapReduce (Snd (Comp f g))
+resolvePar (Comp (Fst f) (Fst g)) = resolvePar (Fst (Comp f g)) <* tell Found
+resolvePar (Comp (Snd f) (Snd g)) = resolvePar (Snd (Comp f g)) <* tell Found
 
 -- first f >>> g *** h = (f >>> g) *** h
 -- second f >>> g *** h = g *** (f >>> h)
-mapReduce (Comp (Fst f) (Split g h)) = mapReduce (Split (Comp f g) h)
-mapReduce (Comp (Snd f) (Split g h)) = mapReduce (Split g (Comp f h))
+resolvePar (Comp (Fst f) (Split g h)) = resolvePar (Split (Comp f g) h) <* tell Found
+resolvePar (Comp (Snd f) (Split g h)) = resolvePar (Split g (Comp f h)) <* tell Found
 
 -- f *** g >>> first h = (f >>> h) *** g
 -- f *** g >>> second h = f *** (g >>> h)
-mapReduce (Comp (Split f g) (Fst h)) = mapReduce (Split (Comp f h) g)
-mapReduce (Comp (Split f g) (Snd h)) = mapReduce (Split f (Comp g h))
+resolvePar (Comp (Split f g) (Fst h)) = resolvePar (Split (Comp f h) g) <* tell Found
+resolvePar (Comp (Split f g) (Snd h)) = resolvePar (Split f (Comp g h)) <* tell Found
 
 -- id *** f = second f
 -- f *** id = first f
-mapReduce (Split Id f) = mapReduce (Snd f)
-mapReduce (Split f Id) = mapReduce (Fst f)
+resolvePar (Split Id f) = resolvePar (Snd f) <* tell Found
+resolvePar (Split f Id) = resolvePar (Fst f) <* tell Found
 
 
-mapReduce (Comp f g) = Comp (mapReduce f) (mapReduce g)
+resolvePar (Comp f g) = Comp <$> resolvePar f <*> resolvePar g
 
-mapReduce (Fst f) = Fst (mapReduce f)
-mapReduce (Snd f) = Snd (mapReduce f)
+-- resolvePar (Fst f) = Fst <$> resolvePar f
+resolvePar (Fst f) = Fst <$> resolvePar f
+resolvePar (Snd f) = Snd <$> resolvePar f
 
-mapReduce (Split f g) = Split (mapReduce f) (mapReduce g)
+resolvePar (Split f g) = Split <$> resolvePar f <*> resolvePar g
 
 
 
