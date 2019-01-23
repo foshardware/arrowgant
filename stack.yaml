@@ -3,7 +3,7 @@ packages:
 - .
 extra-deps:
 - arrows-0.4.4.2
-- Stream-0.4
+- Stream-0.4.7.2
 - lazysmallcheck-0.6
 allow-newer: true
 resolver: lts-13.4
