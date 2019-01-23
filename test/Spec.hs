@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 
 import Control.Category
 import Control.Arrow
@@ -60,7 +61,7 @@ reducer = mapReduce
 
 
 sym :: Int -> Algebraic Computation a b
-sym = lift . symbol
+sym = lift . Symbol
 
 a, b, c, d, e, f, g :: Algebraic Computation a b
 a = sym 1
@@ -72,3 +73,101 @@ f = sym 6
 g = sym 7
 h = sym 8
 i = sym 9
+
+
+data Computation a b where
+
+  Symbol :: Int -> Computation a b
+  PropId :: Computation a b
+  Append :: Computation b c -> Computation a b -> Computation a c
+
+  SomeFunc :: Computation a b
+
+  First  :: Computation a b -> Computation a b
+  Second :: Computation a b -> Computation a b
+
+  Par    :: Computation a b -> Computation c d -> Computation e f
+  Choice :: Computation a b -> Computation c d -> Computation e f
+
+  Zero :: Computation a b
+  Plus :: Computation a b -> Computation a b -> Computation a b
+
+
+cast :: Computation a b -> Computation c d
+cast (Symbol x) = Symbol x
+cast PropId = PropId
+cast SomeFunc = SomeFunc
+cast (Append g f) = Append (cast g) (cast f)
+cast (First  f) = First  (cast f)
+cast (Second f) = Second (cast f)
+cast (Par f g) = Par (cast f) (cast g)
+cast Zero = Zero
+cast (Plus f g) = Plus (cast f) (cast g)
+cast (Choice f g) = Choice (cast f) (cast g)
+
+
+
+instance Category Computation where
+  id = PropId
+  (.) = Append
+
+instance Arrow Computation where
+  arr f = SomeFunc
+  first  f = First  (cast f)
+  second f = Second (cast f)
+  f *** g = Par f g
+
+instance ArrowZero Computation where
+  zeroArrow = Zero
+
+instance ArrowPlus Computation where
+  (<+>) = Plus
+
+instance ArrowChoice Computation where
+  (+++) = Choice
+
+
+instance Eq (Computation a b) where
+
+  Symbol x == Symbol y = x == y
+  PropId == PropId = True
+  Append g f == Append i h = g == cast i && f == cast h
+
+  SomeFunc == SomeFunc = True
+  First  f == First  g = f == g
+  Second f == Second g = f == g
+
+  Par f g == Par h i = f == cast h && g == cast i
+
+  Zero == Zero = True
+  Plus f g == Plus h i = f == h && g == i
+
+  Choice f g == Choice h i = f == cast h && g == cast i
+
+  _ == _ = False
+
+
+instance Show (Computation a b) where
+  show (Symbol x) = show x
+  show PropId = "id"
+  show (Append f g) = unwords [paren g, ">>>", paren f]
+  show (First  f) = unwords ["first", paren f]
+  show (Second f) = unwords ["second", paren f]
+  show (Par f g) = unwords [paren f, "***", paren g]
+  show Zero = "zeroArrow"
+  show (Plus f g) = unwords [paren f, "<+>", paren g]
+  show (Choice f g) = unwords [paren f, "+++", paren g]
+
+paren :: Computation a b -> String
+paren (Symbol 1) = "a"
+paren (Symbol 2) = "b"
+paren (Symbol 3) = "c"
+paren (Symbol 4) = "d"
+paren (Symbol 5) = "e"
+paren (Symbol 6) = "f"
+paren (Symbol 7) = "g"
+paren (Symbol 8) = "h"
+paren (Symbol 9) = "i"
+paren (Symbol x) = show x
+paren x = "(" ++ show x ++ ")"
+

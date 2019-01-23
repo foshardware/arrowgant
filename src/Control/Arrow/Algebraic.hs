@@ -59,10 +59,6 @@ mapReduce (Snd f) = Snd (mapReduce f)
 
 mapReduce (Split f g) = Split (mapReduce f) (mapReduce g)
 
-mapReduce Zero = Zero
-mapReduce (Plus f g) = Plus (mapReduce f) (mapReduce g)
-
-mapReduce (Choice f g) = Choice (mapReduce f) (mapReduce g)
 
 
 data Algebraic a b c where
@@ -77,17 +73,12 @@ data Algebraic a b c where
   Fst    :: Algebraic a b c -> Algebraic a (b, d) (c, d)
   Snd    :: Algebraic a b c -> Algebraic a (d, b) (d, c)
 
-  Zero   :: Algebraic a b c
-  Plus   :: Algebraic a b c -> Algebraic a b c -> Algebraic a b c
-
-  Choice :: Algebraic a b c -> Algebraic a d e -> Algebraic a (Either b d) (Either c e)
-
 
 instance Arrow a => ArrowTransformer Algebraic a where
   lift = Lift
 
 
-algebraic :: (ArrowChoice a, ArrowPlus a) => Algebraic a b c -> a b c
+algebraic :: Arrow a => Algebraic a b c -> a b c
 
 algebraic Id          = id
 algebraic (Lift e)    = e
@@ -100,11 +91,6 @@ algebraic (Snd f)  = second (algebraic f)
 
 algebraic (Split f g) = algebraic f *** algebraic g
 
-algebraic Zero       = zeroArrow
-algebraic (Plus f g) = algebraic f <+> algebraic g
-
-algebraic (Choice f g)   = algebraic f +++ algebraic g
-
 
 instance Category (Algebraic a) where
   id = Id
@@ -116,114 +102,12 @@ instance Arrow (Algebraic a) where
   second = Snd
   (***)  = Split
 
-instance ArrowZero (Algebraic a) where
-  zeroArrow = Zero
+instance ArrowZero a => ArrowZero (Algebraic a) where
+  zeroArrow = lift zeroArrow
 
-instance ArrowPlus (Algebraic a) where
-  (<+>) = Plus
+instance ArrowPlus a => ArrowPlus (Algebraic a) where
+  f <+> g = lift (algebraic f <+> algebraic g)
 
-instance ArrowChoice (Algebraic a) where
-  (+++) = Choice
+instance ArrowChoice a => ArrowChoice (Algebraic a) where
+  f +++ g = lift (algebraic f +++ algebraic g)
 
-
-
-symbol :: Int -> Computation a b
-symbol = Symbol
-
-
-data Computation a b where
-
-  Symbol :: Int -> Computation a b
-  PropId :: Computation a b
-  Append :: Computation b c -> Computation a b -> Computation a c
-
-  SomeFunc :: Computation a b
-
-  First  :: Computation a b -> Computation a b
-  Second :: Computation a b -> Computation a b
-
-  PropSplit  :: Computation a b -> Computation c d -> Computation e f
-  PropChoice :: Computation a b -> Computation c d -> Computation e f
-
-  PropZero :: Computation a b
-  PropPlus :: Computation a b -> Computation a b -> Computation a b
-
-
-cast :: Computation a b -> Computation c d
-cast (Symbol x) = Symbol x
-cast PropId = PropId
-cast SomeFunc = SomeFunc
-cast (Append g f) = Append (cast g) (cast f)
-cast (First  f) = First  (cast f)
-cast (Second f) = Second (cast f)
-cast (PropSplit f g) = PropSplit (cast f) (cast g)
-cast PropZero = PropZero
-cast (PropPlus f g) = PropPlus (cast f) (cast g)
-cast (PropChoice f g) = PropChoice (cast f) (cast g)
-
-
-
-instance Category Computation where
-  id = PropId
-  (.) = Append
-
-instance Arrow Computation where
-  arr f = SomeFunc
-  first  f = First  (cast f)
-  second f = Second (cast f)
-
-  f *** g = PropSplit f g
-
-instance ArrowZero Computation where
-  zeroArrow = PropZero
-
-instance ArrowPlus Computation where
-  (<+>) = PropPlus
-
-instance ArrowChoice Computation where
-  (+++) = PropChoice
-
-
-instance Eq (Computation a b) where
-
-  Symbol x == Symbol y = x == y
-  PropId == PropId = True
-  Append g f == Append i h = g == cast i && f == cast h
-
-  SomeFunc == SomeFunc = True
-  First  f == First  g = f == g
-  Second f == Second g = f == g
-
-  PropSplit f g == PropSplit h i = f == cast h && g == cast i
-
-  PropZero == PropZero = True
-  PropPlus f g == PropPlus h i = f == h && g == i
-
-  PropChoice f g == PropChoice h i = f == cast h && g == cast i
-
-  _ == _ = False
-
-
-instance Show (Computation a b) where
-  show (Symbol x) = show x
-  show PropId = "id"
-  show (Append f g) = unwords [paren g, ">>>", paren f]
-  show (First  f) = unwords ["first", paren f]
-  show (Second f) = unwords ["second", paren f]
-  show (PropSplit f g) = unwords [paren f, "***", paren g]
-  show PropZero = "zeroArrow"
-  show (PropPlus f g) = unwords [paren f, "<+>", paren g]
-  show (PropChoice f g) = unwords [paren f, "+++", paren g]
-
-paren :: Computation a b -> String
-paren (Symbol 1) = "a"
-paren (Symbol 2) = "b"
-paren (Symbol 3) = "c"
-paren (Symbol 4) = "d"
-paren (Symbol 5) = "e"
-paren (Symbol 6) = "f"
-paren (Symbol 7) = "g"
-paren (Symbol 8) = "h"
-paren (Symbol 9) = "i"
-paren (Symbol x) = show x
-paren x = "(" ++ show x ++ ")"
