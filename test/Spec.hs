@@ -11,10 +11,12 @@ import Test.Tasty.HUnit
 import Control.Arrow.Algebraic
 
 main :: IO ()
-main = defaultMain tests
+main = do
+  putStrLn mempty
+  defaultMain tests
 
 tests :: TestTree
-tests = testGroup "Tests"
+tests = testGroup "Arrow laws"
   [ testCase "id . f = f" $ id . f ==> f
   , testCase "f . id = f" $ f . id ==> f
 
