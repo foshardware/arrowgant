@@ -14,16 +14,16 @@ import Prelude hiding (id, (.))
 
 
 parallel :: Int -> Algebraic a b c -> Algebraic a b c
-parallel n = resolveCores $ pred n
+parallel n = resolveCores n $ pred n
 
 
-resolveCores :: Int -> Algebraic a b c -> Algebraic a b c
-resolveCores 0 (Split f g) = first (resolveCores 0 f) >>> second (resolveCores 0 g)
-resolveCores n (Split f g) = resolveCores (pred n) f *** resolveCores (pred n) g
-resolveCores n (Comp  f g) = resolveCores n f >>> resolveCores n g
-resolveCores n (Fst f) = first  (resolveCores n f)
-resolveCores n (Snd f) = second (resolveCores n f)
-resolveCores _ f = f
+resolveCores :: Int -> Int -> Algebraic a b c -> Algebraic a b c
+resolveCores n 0 (Split f g) = first (resolveCores n 0 f) >>> second (resolveCores n (pred n) g)
+resolveCores k n (Split f g) = resolveCores k (pred n) f *** resolveCores k (pred n) g
+resolveCores k n (Comp  f g) = resolveCores k n f >>> resolveCores k n g
+resolveCores k n (Fst f) = first  (resolveCores k n f)
+resolveCores k n (Snd f) = second (resolveCores k n f)
+resolveCores _ _ f = f
 
 
 mapReduce :: Arrow a => Algebraic a b c -> Algebraic a b c

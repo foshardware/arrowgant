@@ -15,6 +15,7 @@ main = defaultMain $ testGroup "Algebra"
   [ arrowLaws
   , singleCore
   , dualCore
+  , quadCore
   ]
 
 arrowLaws :: TestTree
@@ -79,8 +80,17 @@ infixr 0 ==>
 
 singleCore :: TestTree
 singleCore = testGroup "Single core"
-  [
+  [ testCase "(f *** g) *** (h *** i) = first (first f >>> second g) >>> second (first h >>> second i)"
+    $ (f *** g) *** (h *** i) ==- first (first f >>> second g) >>> second (first h >>> second i)
+
+  , testCase "f *** g *** h = first f >>> second (first g >>> second h)"
+    $ f *** g *** h ==- first f >>> second (first g >>> second h)
+
+  , testCase "f *** g *** h ** i = first f >>> second (first g >>> second (first h >>> second i))"
+    $ f *** g *** h *** i ==- first f >>> second (first g >>> second (first h >>> second i))
   ]
+
+infixr 0 ==-
 
 
 dualCore :: TestTree
@@ -91,14 +101,39 @@ dualCore = testGroup "Dual core"
   , testCase "f *** g *** h = f *** (first g >>> second h)"
     $ f *** g *** h ==+ f *** (first g >>> second h)
 
-  , testCase "f *** g *** h *** i = f *** (first g >>> second h)"
-    $ f *** g *** h *** i ==+ f *** (first g >>> second h)
+  , testCase "f *** g *** h *** i = f *** (first g >>> second (h *** i))"
+    $ f *** g *** h *** i ==+ f *** (first g >>> second (h *** i))
+
+  , testCase "f *** g *** h *** i *** a *** b = f *** (first g >>> second (h *** (first i >>> second (a *** b))))"
+    $ f *** g *** h *** i *** a *** b ==+ f *** (first g >>> second (h *** (first i >>> second (a *** b))))
   ]
 
 infixr 0 ==+
 
 
-(==+), (==-), (==>) :: Algebraic Computation a b -> Algebraic Computation a b -> IO ()
+quadCore :: TestTree
+quadCore = testGroup "Quad core"
+  [ testCase "(f *** g) *** (h *** i) = (f *** g) *** (h *** i)"
+    $ (f *** g) *** (h *** i) ==~ (f *** g) *** (h *** i)
+
+  , testCase "f *** g *** h = f *** g *** h"
+    $ f *** g *** h ==~ f *** g *** h
+
+  , testCase "f *** g *** h *** i = f *** g *** h *** i"
+    $ f *** g *** h *** i ==~ f *** g *** h *** i
+
+  , testCase "f *** g *** h *** i *** a *** b = f *** g *** h *** (first i >>> second (a *** b))"
+    $ f *** g *** h *** i *** a *** b ==~  f *** g *** h *** (first i >>> second (a *** b))
+  ]
+
+infixr 0 ==~
+
+
+(==~), (==+), (==-), (==>)
+  :: Algebraic Computation a b
+  -> Algebraic Computation a b
+  -> IO ()
+f ==~ g = algebraic (parallel 4 $ reducer f) @?= algebraic g
 f ==+ g = algebraic (parallel 2 $ reducer f) @?= algebraic g
 f ==- g = algebraic (parallel 1 $ reducer f) @?= algebraic g
 f ==> g = algebraic (reducer f) @?= algebraic g
