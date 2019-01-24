@@ -98,6 +98,9 @@ dualCore = testGroup "Dual core"
   [ testCase "(f *** g) *** (h *** i) = (first f >>> second g) *** (first h >>> second i)"
     $ (f *** g) *** (h *** i) ==+ (first f >>> second g) *** (first h >>> second i)
 
+  , testCase "(f *** g *** h) *** (i *** a *** b) = (first f >>> second g) *** (first h >>> second i)"
+    $ (f *** g *** h) *** (i *** a *** b) ==+ (first f >>> second (g *** h)) *** (first i >>> second (a *** b))
+
   , testCase "f *** g *** h = f *** (first g >>> second h)"
     $ f *** g *** h ==+ f *** (first g >>> second h)
 
@@ -106,6 +109,9 @@ dualCore = testGroup "Dual core"
 
   , testCase "f *** g *** h *** i *** a *** b = f *** (first g >>> second (h *** (first i >>> second (a *** b))))"
     $ f *** g *** h *** i *** a *** b ==+ f *** (first g >>> second (h *** (first i >>> second (a *** b))))
+
+  , testCase "((f *** g) *** h) *** ((i *** a) *** b) = (first (f *** g) >>> second h) *** (first (i *** a) >>> second b)"
+    $ ((f *** g) *** h) *** ((i *** a) *** b) ==+ (first (f *** g) >>> second h) *** (first (i *** a) >>> second b)
   ]
 
 infixr 0 ==+
@@ -124,6 +130,9 @@ quadCore = testGroup "Quad core"
 
   , testCase "f *** g *** h *** i *** a *** b = f *** g *** h *** (first i >>> second (a *** b))"
     $ f *** g *** h *** i *** a *** b ==~  f *** g *** h *** (first i >>> second (a *** b))
+
+  , testCase "((f *** g) *** h) *** ((i *** a) *** b) = ((f *** g) *** h) *** ((i *** a) *** b)"
+    $ ((f *** g) *** h) *** ((i *** a) *** b) ==~ ((f *** g) *** h) *** ((i *** a) *** b)
   ]
 
 infixr 0 ==~

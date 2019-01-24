@@ -18,7 +18,7 @@ parallel n = resolveCores n $ pred n
 
 
 resolveCores :: Int -> Int -> Algebraic a b c -> Algebraic a b c
-resolveCores n 0 (Split f g) = first (resolveCores n 0 f) >>> second (resolveCores n (pred n) g)
+resolveCores n 0 (Split f g) = first (resolveCores n (pred n) f) >>> second (resolveCores n (pred n) g)
 resolveCores k n (Split f g) = resolveCores k (pred n) f *** resolveCores k (pred n) g
 resolveCores k n (Comp  f g) = resolveCores k n f >>> resolveCores k n g
 resolveCores k n (Fst f) = first  (resolveCores k n f)
