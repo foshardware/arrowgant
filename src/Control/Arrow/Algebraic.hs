@@ -50,6 +50,10 @@ resolvePar (Comp (Pure f) (Pure g)) = resolvePar (Pure (g . f))
 resolvePar (Comp (Fst f) (Snd g)) = resolvePar (Split f g) <* tell Found
 resolvePar (Comp (Snd g) (Fst f)) = resolvePar (Split f g) <* tell Found
 
+resolvePar (Comp (Fst f) (Comp (Snd g) h)) = resolvePar (Comp (Split f g) h) <* tell Found
+resolvePar (Comp (Snd f) (Comp (Fst g) h)) = resolvePar (Comp (Split g f) h) <* tell Found
+
+
 -- first f >>> first g = first (f >>> g)
 -- second f >>> second g = second (f >>> g)
 resolvePar (Comp (Fst f) (Fst g)) = resolvePar (Fst (Comp f g)) <* tell Found

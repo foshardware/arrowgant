@@ -55,6 +55,16 @@ tests = testGroup "Arrow laws"
 
   , testCase "first g >>> second h >>> i = g *** h >>> i"
     $ first g >>> second h >>> i ==> g *** h >>> i
+
+  , testCase "first f >>> first g >>> second h >>> second i = (f >>> g) *** (h >>> i)"
+    $ first f >>> first g >>> second h >>> second i ==> (f >>> g) *** (h >>> i)
+  , testCase "second f >>> second g >>> first h >>> first i = (h >>> i) *** (f >>> g)"
+    $ second f >>> second g >>> first h >>> first i ==> (h >>> i) *** (f >>> g)
+
+  , testCase "first f >>> first g >>> second h >>> first i = (f >>> g >>> i) *** h"
+    $ first f >>> first g >>> second h >>> first i ==> (f >>> g >>> i) *** h
+  , testCase "second f >>> second g >>> first h >>> second i = h *** (f >>> g >>> i)"
+    $ second f >>> second g >>> first h >>> second i ==> h *** (f >>> g >>> i)
   ]
 
 
