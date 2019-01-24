@@ -18,11 +18,20 @@ parallel n = resolveCores n $ pred n
 
 
 resolveCores :: Int -> Int -> Algebraic a b c -> Algebraic a b c
-resolveCores n 0 (Split f g) = first (resolveCores n (pred n) f) >>> second (resolveCores n (pred n) g)
+
+resolveCores k n (Split (Split f g) (Split h i)) = assoc ^>> resolveCores k n (f *** g *** h *** i) >>^ arr unassoc
+  where
+    assoc ((a,b),c) = (a,(b,c))
+    unassoc (a,(b,c)) = ((a,b),c)
+
+resolveCores k 0 (Split f g) = first (resolveCores k (pred k) f) >>> second (resolveCores k (pred k) g)
+
 resolveCores k n (Split f g) = resolveCores k (pred n) f *** resolveCores k (pred n) g
 resolveCores k n (Comp  f g) = resolveCores k n f >>> resolveCores k n g
+
 resolveCores k n (Fst f) = first  (resolveCores k n f)
 resolveCores k n (Snd f) = second (resolveCores k n f)
+
 resolveCores _ _ f = f
 
 
@@ -140,7 +149,7 @@ instance Arrow (Algebraic a) where
   arr    = Pure
   first  = Fst
   second = Snd
-  (***)  = Split
+  (***) = Split
 
 instance ArrowZero a => ArrowZero (Algebraic a) where
   zeroArrow = lift zeroArrow

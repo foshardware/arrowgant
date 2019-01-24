@@ -13,9 +13,6 @@ import Control.Arrow.Algebraic
 main :: IO ()
 main = defaultMain $ testGroup "Algebra"
   [ arrowLaws
-  , singleCore
-  , dualCore
-  , quadCore
   ]
 
 arrowLaws :: TestTree
@@ -75,76 +72,13 @@ arrowLaws = testGroup "Arrow laws"
     $ second f >>> second g >>> first h >>> i ==> h *** (f >>> g) >>> i
   ]
 
+
 infixr 0 ==>
 
-
-singleCore :: TestTree
-singleCore = testGroup "Single core"
-  [ testCase "(f *** g) *** (h *** i) = first (first f >>> second g) >>> second (first h >>> second i)"
-    $ (f *** g) *** (h *** i) ==- first (first f >>> second g) >>> second (first h >>> second i)
-
-  , testCase "f *** g *** h = first f >>> second (first g >>> second h)"
-    $ f *** g *** h ==- first f >>> second (first g >>> second h)
-
-  , testCase "f *** g *** h ** i = first f >>> second (first g >>> second (first h >>> second i))"
-    $ f *** g *** h *** i ==- first f >>> second (first g >>> second (first h >>> second i))
-  ]
-
-infixr 0 ==-
-
-
-dualCore :: TestTree
-dualCore = testGroup "Dual core"
-  [ testCase "(f *** g) *** (h *** i) = (first f >>> second g) *** (first h >>> second i)"
-    $ (f *** g) *** (h *** i) ==+ (first f >>> second g) *** (first h >>> second i)
-
-  , testCase "(f *** g *** h) *** (i *** a *** b) = (first f >>> second g) *** (first h >>> second i)"
-    $ (f *** g *** h) *** (i *** a *** b) ==+ (first f >>> second (g *** h)) *** (first i >>> second (a *** b))
-
-  , testCase "f *** g *** h = f *** (first g >>> second h)"
-    $ f *** g *** h ==+ f *** (first g >>> second h)
-
-  , testCase "f *** g *** h *** i = f *** (first g >>> second (h *** i))"
-    $ f *** g *** h *** i ==+ f *** (first g >>> second (h *** i))
-
-  , testCase "f *** g *** h *** i *** a *** b = f *** (first g >>> second (h *** (first i >>> second (a *** b))))"
-    $ f *** g *** h *** i *** a *** b ==+ f *** (first g >>> second (h *** (first i >>> second (a *** b))))
-
-  , testCase "((f *** g) *** h) *** ((i *** a) *** b) = (first (f *** g) >>> second h) *** (first (i *** a) >>> second b)"
-    $ ((f *** g) *** h) *** ((i *** a) *** b) ==+ (first (f *** g) >>> second h) *** (first (i *** a) >>> second b)
-  ]
-
-infixr 0 ==+
-
-
-quadCore :: TestTree
-quadCore = testGroup "Quad core"
-  [ testCase "(f *** g) *** (h *** i) = (f *** g) *** (h *** i)"
-    $ (f *** g) *** (h *** i) ==~ (f *** g) *** (h *** i)
-
-  , testCase "f *** g *** h = f *** g *** h"
-    $ f *** g *** h ==~ f *** g *** h
-
-  , testCase "f *** g *** h *** i = f *** g *** h *** i"
-    $ f *** g *** h *** i ==~ f *** g *** h *** i
-
-  , testCase "f *** g *** h *** i *** a *** b = f *** g *** h *** (first i >>> second (a *** b))"
-    $ f *** g *** h *** i *** a *** b ==~  f *** g *** h *** (first i >>> second (a *** b))
-
-  , testCase "((f *** g) *** h) *** ((i *** a) *** b) = ((f *** g) *** h) *** ((i *** a) *** b)"
-    $ ((f *** g) *** h) *** ((i *** a) *** b) ==~ ((f *** g) *** h) *** ((i *** a) *** b)
-  ]
-
-infixr 0 ==~
-
-
-(==~), (==+), (==-), (==>)
+(==>)
   :: Algebraic Computation a b
   -> Algebraic Computation a b
   -> IO ()
-f ==~ g = algebraic (parallel 4 $ reducer f) @?= algebraic g
-f ==+ g = algebraic (parallel 2 $ reducer f) @?= algebraic g
-f ==- g = algebraic (parallel 1 $ reducer f) @?= algebraic g
 f ==> g = algebraic (reducer f) @?= algebraic g
 
 reducer :: Algebraic Computation a b -> Algebraic Computation a b
@@ -172,7 +106,7 @@ data Computation a b where
   PropId :: Computation a b
   Append :: Computation b c -> Computation a b -> Computation a c
 
-  SomeFunc :: Computation a b
+  SomeFunc :: String -> Computation a b
 
   First  :: Computation a b -> Computation a b
   Second :: Computation a b -> Computation a b
@@ -187,7 +121,7 @@ data Computation a b where
 cast :: Computation a b -> Computation c d
 cast (Symbol x) = Symbol x
 cast PropId = PropId
-cast SomeFunc = SomeFunc
+cast (SomeFunc s) = SomeFunc s
 cast (Append g f) = Append (cast g) (cast f)
 cast (First  f) = First  (cast f)
 cast (Second f) = Second (cast f)
@@ -203,7 +137,7 @@ instance Category Computation where
   (.) = Append
 
 instance Arrow Computation where
-  arr f = SomeFunc
+  arr f = SomeFunc "arr someFunc"
   first  f = First  (cast f)
   second f = Second (cast f)
   f *** g = Par f g
@@ -222,9 +156,15 @@ instance Eq (Computation a b) where
 
   Symbol x == Symbol y = x == y
   PropId == PropId = True
+
+  Append (SomeFunc _) f == g = f == cast g
+  Append f (SomeFunc _) == g = f == cast g
+  f == Append (SomeFunc _) g = f == cast g
+  f == Append g (SomeFunc _) = f == cast g
+
   Append g f == Append i h = g == cast i && f == cast h
 
-  SomeFunc == SomeFunc = True
+  SomeFunc _ == SomeFunc _ = True
   First  f == First  g = f == g
   Second f == Second g = f == g
 
@@ -248,6 +188,7 @@ instance Show (Computation a b) where
   show Zero = "zeroArrow"
   show (Plus f g) = unwords [paren f, "<+>", paren g]
   show (Choice f g) = unwords [paren f, "+++", paren g]
+  show (SomeFunc s) = s
 
 paren :: Computation a b -> String
 paren (Symbol 1) = "a"
