@@ -81,7 +81,6 @@ resolvePar (Split f Id) = resolvePar (Fst f) <* tell Found
 
 resolvePar (Comp f g) = Comp <$> resolvePar f <*> resolvePar g
 
--- resolvePar (Fst f) = Fst <$> resolvePar f
 resolvePar (Fst f) = Fst <$> resolvePar f
 resolvePar (Snd f) = Snd <$> resolvePar f
 
