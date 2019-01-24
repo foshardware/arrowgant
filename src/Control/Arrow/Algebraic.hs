@@ -13,6 +13,15 @@ import Control.Monad.Writer (Writer(..), tell, runWriter)
 import Prelude hiding (id, (.))
 
 
+parallel :: Int -> Algebraic a b c -> Algebraic a b c
+parallel 0 (Split f g) = first f >>> second g
+parallel n (Split f g) = parallel (pred n) f *** parallel (pred n) g
+parallel n (Comp  f g) = parallel n f >>> parallel n g
+parallel n (Fst f) = first  (parallel n f)
+parallel n (Snd f) = second (parallel n f)
+parallel _ f = f
+
+
 mapReduce :: Arrow a => Algebraic a b c -> Algebraic a b c
 mapReduce f = case runWriter $ resolvePar f of
   (g, Found) -> mapReduce g
