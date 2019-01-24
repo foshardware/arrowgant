@@ -11,12 +11,14 @@ import Test.Tasty.HUnit
 import Control.Arrow.Algebraic
 
 main :: IO ()
-main = do
-  putStrLn mempty
-  defaultMain tests
+main = defaultMain $ testGroup "Algebra"
+  [ arrowLaws
+  , singleCore
+  , dualCore
+  ]
 
-tests :: TestTree
-tests = testGroup "Arrow laws"
+arrowLaws :: TestTree
+arrowLaws = testGroup "Arrow laws"
   [ testCase "id . f = f" $ id . f ==> f
   , testCase "f . id = f" $ f . id ==> f
 
@@ -72,10 +74,33 @@ tests = testGroup "Arrow laws"
     $ second f >>> second g >>> first h >>> i ==> h *** (f >>> g) >>> i
   ]
 
-
 infixr 0 ==>
 
-(==>) :: Algebraic Computation a b -> Algebraic Computation a b -> IO ()
+
+singleCore :: TestTree
+singleCore = testGroup "Single core"
+  [
+  ]
+
+
+dualCore :: TestTree
+dualCore = testGroup "Dual core"
+  [ testCase "(f *** g) *** (h *** i) = (first f >>> second g) *** (first h >>> second i)"
+    $ (f *** g) *** (h *** i) ==+ (first f >>> second g) *** (first h >>> second i)
+
+  , testCase "f *** g *** h = f *** (first g >>> second h)"
+    $ f *** g *** h ==+ f *** (first g >>> second h)
+
+  , testCase "f *** g *** h *** i = f *** (first g >>> second h)"
+    $ f *** g *** h *** i ==+ f *** (first g >>> second h)
+  ]
+
+infixr 0 ==+
+
+
+(==+), (==-), (==>) :: Algebraic Computation a b -> Algebraic Computation a b -> IO ()
+f ==+ g = algebraic (parallel 2 $ reducer f) @?= algebraic g
+f ==- g = algebraic (parallel 1 $ reducer f) @?= algebraic g
 f ==> g = algebraic (reducer f) @?= algebraic g
 
 reducer :: Algebraic Computation a b -> Algebraic Computation a b
