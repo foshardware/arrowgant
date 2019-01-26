@@ -12,6 +12,8 @@ import Control.Category
 import Control.Monad.Writer (Writer(..), tell, runWriter)
 import Prelude hiding (id, (.))
 
+import GHC.Conc (par)
+
 
 mapReduce :: Arrow a => Algebraic a b c -> Algebraic a b c
 mapReduce f = case runWriter $ resolvePar f of
@@ -43,7 +45,10 @@ resolvePar (Comp Id f) = resolvePar f
 resolvePar (Comp f Id) = resolvePar f
 
 -- arr g . arr f = arr (g . f)
-resolvePar (Comp (Pure f) (Pure g)) = resolvePar (Pure (g . f))
+resolvePar (Comp (Pure f) (Pure g)) = resolvePar (Pure (g . f)) <* tell Found
+
+-- arr f *** arr g = arr (\ (x, y) -> (f x, g y))
+resolvePar (Split (Pure f) (Pure g)) = resolvePar (Pure (\ (x, y) -> (g y `par` f x, g y))) <* tell Found
 
 -- first f >>> second g = f *** g
 -- second g >>> first f = f *** g
