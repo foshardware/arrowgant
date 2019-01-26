@@ -1,10 +1,10 @@
 name:                arrowgant
-version:             0.1.0.0
-github:              "githubuser/arrowgant"
+version:             0.1.0.1
+github:              "foshardware/arrowgant"
 license:             BSD3
-author:              "Author name here"
-maintainer:          "example@example.com"
-copyright:           "2019 Author name here"
+author:              "Andreas Westerwick"
+maintainer:          "westerwick@pconas.de"
+copyright:           "2019 Andreas Westerwick"
 
 extra-source-files:
 - README.md
