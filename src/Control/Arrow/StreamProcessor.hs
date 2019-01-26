@@ -1,6 +1,6 @@
 {-# LANGUAGE Arrows #-}
 
-module Control.Arrow.streamProcessor where
+module Control.Arrow.StreamProcessor where
 
 import Control.Arrow
 import Control.Applicative
