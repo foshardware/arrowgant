@@ -2,13 +2,22 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Control.Arrow.Select where
 
 import Control.Arrow
+import Control.Lens
 import Data.Foldable
 import Data.Vector (Vector, fromListN)
 import Data.Map (Map, toAscList, fromAscList)
+
+
+
+hierarchical :: (Arrow a, ArrowSelect f a) => Lens b b (f b) (f b) -> a b b -> a b b
+hierarchical descend act = proc b -> do
+  models <- hierarchical descend act & select -< b ^. descend
+  act -< b & descend .~ models
 
 
 class ArrowSelect f a where
