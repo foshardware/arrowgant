@@ -2,6 +2,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ParallelListComp #-}
 
@@ -20,31 +21,44 @@ import qualified Data.Set as Set
 
 
 
-dag :: (ArrowChoice a, Foldable f, Ord k) => (b -> k) -> Lens' b (f b) -> a b c -> a b c
-dag color descend act = proc b -> do
-  (c, _) <- memo $ focus color descend $ lift act -< (b, mempty)
-  returnA -< c
-
-focus :: (ArrowChoice a, Foldable f, Ord k) => (b -> k) -> Lens' b (f b) -> Memo k c a b c -> Memo k c a b c
-focus color descend act = proc b -> do
-  sequential $ memoize <<< select act -< layers color descend b
-  reflect color act -< b
-
-
-hierarchical :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
-hierarchical descend act = proc b -> do
-  models <- hierarchical descend act & select -< b ^. descend
-  act -< b & descend .~ models
-
-
 parallel :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
 parallel f = vista f f
 
 
 vista :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> Lens' c (f c) -> a b c -> a b c
 vista descend ascend act = proc b -> do
-  (c, cs) <- act *** (vista descend ascend act & select) -< (b, b ^. descend)
+  (c, cs) <- act *** select (vista descend ascend act) -< (b, b ^. descend)
   returnA -< c & ascend .~ cs
+
+
+dag
+  :: (ArrowChoice a, ArrowSelect f (Memo k b a), Foldable f, Ord k)
+  => (b -> k) -> Lens' b (f b) -> a b b
+  -> a b b
+dag color descend act = arr (, mempty) >>> memo (focus color descend act) >>> arr fst
+
+focus
+  :: (ArrowChoice a, ArrowSelect f (Memo k b a), Foldable f, Ord k)
+  => (b -> k) -> Lens' b (f b) -> a b b
+  -> Memo k b a b b
+focus color descend act = proc b -> do
+  tone color descend act -< b
+  hierarchical descend $ reflect color $ lift act -< b
+
+
+tone
+  :: (ArrowChoice a, Foldable f, Ord k)
+  => (b -> k) -> Lens' b (f b) -> a b c
+  -> Memo k c a b ()
+tone color descend act = proc b -> do
+  sequential $ memoize <<< lift (select act) -< layers color descend b
+  returnA -< ()
+
+
+hierarchical :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
+hierarchical descend act = proc b -> do
+  models <- select $ hierarchical descend act -< b ^. descend
+  act -< b & descend .~ models
 
 
 
@@ -72,7 +86,6 @@ instance ArrowChoice a => ArrowSelect Set a where
 
 instance ArrowChoice a => ArrowSelect (Map b) a where
   select f = Map.toAscList ^>> unzip ^>> second (select f) >>^ uncurry zip >>^ Map.fromDistinctAscList
-
 
 
 streamProcessor :: ArrowChoice a => a b c -> a [b] [c]

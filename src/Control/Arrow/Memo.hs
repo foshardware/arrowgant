@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE Arrows #-}
+{-# LANGUAGE TupleSections #-}
 
 module Control.Arrow.Memo where
 
@@ -84,9 +85,9 @@ instance (ArrowPlus a, Ord k) => ArrowPlus (Memo k v a) where
 
 
 instance (ArrowChoice a, Ord k) => ArrowChoice (Memo k v a) where
-  f +++ g = Memo $ proc (s, m) -> case s of
-    Left  x -> arr (first  Left) <<< memo f -< (x, m)
-    Right x -> arr (first Right) <<< memo g -< (x, m)
+  f +++ g = Memo $ proc (x, m) -> do
+    k <- memo f +++ memo g -< x & (, m) +++ (, m)
+    returnA -< (k & fst +++ fst, k & snd ||| snd)
 
 
 instance (ArrowApply a, Ord k) => ArrowApply (Memo k v a) where
