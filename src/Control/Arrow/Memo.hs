@@ -12,26 +12,24 @@ import Control.Category
 import Control.Lens
 
 import Data.Foldable
-import Data.Map (Map, (\\), member, lookup, union, singleton)
+import Data.Map (Map, difference, member, lookup, insert, union)
 
 import Prelude hiding (id, (.), null, lookup)
 
 
 leaves :: (Foldable f, Ord k) => (b -> k) -> Lens' b (f b) -> b -> Map k b -> Map k b
-leaves color _ b m | color b `member` m = m
-leaves color descend b m
-  | b ^. descend & null
-  = singleton (color b) b `union` m
+leaves color       _ b m
+  | color b `member` m = m
 leaves color descend b m
   | b ^. descend & all (\ c -> color c `member` m)
-  = singleton (color b) b `union` m
+  = insert (color b) b m
 leaves color descend b m
   = foldr (leaves color descend) m (b ^. descend)
 
 
 layers :: (Foldable f, Ord k) => (b -> k) -> Lens' b (f b) -> b -> [Map k b]
 layers color descend b
-  = takeWhile (not . null) [ y \\ x | x <- mempty : xs | y <- xs ]
+  = takeWhile (not . null) $ zipWith difference xs (mempty : xs)
   where xs = iterate (leaves color descend b) (leaves color descend b mempty)
 
 
