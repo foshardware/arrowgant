@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE Arrows #-}
-{-# LANGUAGE ParallelListComp #-}
 
 module Control.Arrow.Memo where
 
