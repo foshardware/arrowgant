@@ -3,10 +3,13 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ParallelListComp #-}
 
 module Control.Arrow.Select where
 
 import Control.Arrow
+import Control.Arrow.Memo
+import Control.Arrow.Transformer
 import Control.Lens
 import Data.Foldable
 import Data.Vector (Vector, fromListN)
@@ -15,6 +18,17 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 
+
+
+dag :: (ArrowChoice a, Foldable f, Ord k) => (b -> k) -> Lens' b (f b) -> a b c -> a b c
+dag color descend act = proc b -> do
+  (c, _) <- memo (lift act & focus color descend) -< (b, mempty)
+  returnA -< c
+
+focus :: (ArrowChoice a, Foldable f, Ord k) => (b -> k) -> Lens' b (f b) -> Memo k c a b c -> Memo k c a b c
+focus color descend act = proc b -> do
+  sequential $ memoize <<< select act -< layers color descend b
+  reflect color act -< b
 
 
 hierarchical :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
@@ -65,5 +79,13 @@ streamProcessor :: ArrowChoice a => a b c -> a [b] [c]
 streamProcessor a = proc xs -> case xs of
   b : bs -> do
     (c, cs) <- a *** streamProcessor a -< (b, bs)
+    returnA -< c : cs
+  _ -> returnA -< []
+
+sequential :: ArrowChoice a => a b c -> a [b] [c]
+sequential a = proc xs -> case xs of
+  b : bs -> do
+    c <- a -< b
+    cs <- sequential a -< bs
     returnA -< c : cs
   _ -> returnA -< []

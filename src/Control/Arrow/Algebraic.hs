@@ -9,7 +9,7 @@ module Control.Arrow.Algebraic where
 import Control.Arrow
 import Control.Arrow.Transformer
 import Control.Category
-import Control.Monad.Writer (Writer(..), tell, runWriter)
+import Control.Monad.Writer (Writer, tell, runWriter)
 import Prelude hiding (id, (.))
 
 import GHC.Conc (par)

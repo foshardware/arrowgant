@@ -1,19 +1,47 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 import Control.Category
 import Control.Arrow
 import Control.Arrow.Transformer
+import Control.Lens
 import Prelude hiding (id, (.))
 
 import Test.Tasty
 import Test.Tasty.HUnit
 
 import Control.Arrow.Algebraic
+import Control.Arrow.Memo
+
 
 main :: IO ()
 main = defaultMain $ testGroup "Algebra"
   [ arrowLaws
+  , graphReduction
   ]
+
+graphReduction :: TestTree
+graphReduction = testGroup "Graph reduction"
+  [
+  ]
+
+
+subtrees :: Lens' (Tree a) [Tree a]
+subtrees = lens getter setter
+  where
+    getter (Tree _ xs) = xs
+    setter (Tree x xs) s = Tree x s
+
+data Tree a = Tree { _node :: a, _subtrees :: [Tree a] }
+  deriving (Eq, Ord)
+
+instance Show a => Show (Tree a) where
+  show (Tree x xs) = show x
+
+
 
 arrowLaws :: TestTree
 arrowLaws = testGroup "Arrow laws"
