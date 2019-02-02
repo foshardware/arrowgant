@@ -22,7 +22,7 @@ import qualified Data.Set as Set
 
 dag :: (ArrowChoice a, Foldable f, Ord k) => (b -> k) -> Lens' b (f b) -> a b c -> a b c
 dag color descend act = proc b -> do
-  (c, _) <- memo (lift act & focus color descend) -< (b, mempty)
+  (c, _) <- memo $ focus color descend $ lift act -< (b, mempty)
   returnA -< c
 
 focus :: (ArrowChoice a, Foldable f, Ord k) => (b -> k) -> Lens' b (f b) -> Memo k c a b c -> Memo k c a b c

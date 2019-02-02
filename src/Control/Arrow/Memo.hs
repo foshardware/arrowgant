@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE Arrows #-}
+{-# LANGUAGE ParallelListComp #-}
 
 module Control.Arrow.Memo where
 
@@ -30,9 +31,7 @@ leaves color descend b m
 
 layers :: (Foldable f, Ord k) => (b -> k) -> Lens' b (f b) -> b -> [Map k b]
 layers color descend b
-  = fmap (\ (x, y) -> y \\ x)
-  $ takeWhile (\ (x, y) -> length x < length y)
-  $ zip (mempty : xs) xs
+  = takeWhile (not . null) [ y \\ x | x <- mempty : xs | y <- xs ]
   where xs = iterate (leaves color descend b) (leaves color descend b mempty)
 
 
