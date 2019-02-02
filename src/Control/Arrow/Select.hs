@@ -42,17 +42,8 @@ focus
   => (b -> k) -> Lens' b (f b) -> a b b
   -> Memo k b a b b
 focus color descend act = proc b -> do
-  tone color descend act -< b
-  hierarchical descend $ reflect color $ lift act -< b
-
-
-tone
-  :: (ArrowChoice a, Foldable f, Ord k)
-  => (b -> k) -> Lens' b (f b) -> a b c
-  -> Memo k c a b ()
-tone color descend act = proc b -> do
   sequential $ memoize <<< lift (select act) -< layers color descend b
-  returnA -< ()
+  hierarchical descend $ reflect color (lift act) -< b
 
 
 hierarchical :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
