@@ -14,10 +14,21 @@ import Data.Map (Map, toAscList, fromAscList)
 
 
 
-hierarchical :: (Arrow a, ArrowSelect f a) => Lens b b (f b) (f b) -> a b b -> a b b
+hierarchical :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
 hierarchical descend act = proc b -> do
   models <- hierarchical descend act & select -< b ^. descend
   act -< b & descend .~ models
+
+
+parallel :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
+parallel f = vista f f
+
+
+vista :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> Lens' c (f c) -> a b c -> a b c
+vista descend ascend act = proc b -> do
+  (c, cs) <- act *** (vista descend ascend act & select) -< (b, b ^. descend)
+  returnA -< c & ascend .~ cs
+
 
 
 class ArrowSelect f a where
