@@ -10,7 +10,10 @@ import Control.Arrow
 import Control.Lens
 import Data.Foldable
 import Data.Vector (Vector, fromListN)
-import Data.Map (Map, toAscList, fromAscList)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 
 
@@ -50,8 +53,12 @@ instance ArrowChoice a => ArrowSelect (Either b) a where
 instance ArrowChoice a => ArrowSelect Vector a where
   select f = arr length &&& arr toList >>> second (select f) >>^ uncurry fromListN
 
-instance (ArrowChoice a, Eq b) => ArrowSelect (Map b) a where
-  select f = toAscList ^>> unzip ^>> second (select f) >>^ uncurry zip >>^ fromAscList
+instance ArrowChoice a => ArrowSelect Set a where
+  select f = Set.toAscList ^>> select f >>^ Set.fromDistinctAscList
+
+instance ArrowChoice a => ArrowSelect (Map b) a where
+  select f = Map.toAscList ^>> unzip ^>> second (select f) >>^ uncurry zip >>^ Map.fromDistinctAscList
+
 
 
 streamProcessor :: ArrowChoice a => a b c -> a [b] [c]
