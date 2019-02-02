@@ -46,11 +46,11 @@ reflect :: (ArrowChoice a, Ord k) => (b -> k) -> Memo k c a b c -> Memo k c a b 
 reflect color act = proc b -> do
   m <- recall -< ()
   case color b `lookup` m of
-    Just c -> returnA -< c
+    Just  c -> returnA -< c
     Nothing -> act -< b
 
 
-instance Arrow a => ArrowTransformer (Memo k v) a where
+instance (Arrow a, Ord k) => ArrowTransformer (Memo k v) a where
   lift = Memo . first
 
 
@@ -59,21 +59,36 @@ instance Category a => Category (Memo k v a) where
   Memo x . Memo y = Memo (x . y)
 
 
-instance Arrow a => Arrow (Memo k v a) where
+instance (Arrow a, Ord k) => Arrow (Memo k v a) where
+
   arr = Memo . arr . first
-  first = Memo . (>>>) swapSnd . (<<<) swapSnd . first . memo
+
+  first f = Memo $ proc ((x, y), m) -> do
+    ((x', m'), _) <- first (memo f) -< ((x, m), y)
+    returnA -< ((x', y), m')
+
+  second f = Memo $ proc ((x, y), m) -> do
+    (_, (y', m')) <- second (memo f) -< (x, (y, m))
+    returnA -< ((x, y'), m')
+
+  f *** g = Memo $ proc ((x, y), m) -> do
+    ((x', m'), (y', m'')) <- memo f *** memo g -< ((x, m), (y, m))
+    returnA -< ((x', y'), union m' m'')
 
 
-swapSnd :: Arrow r => r ((a, b), c) ((a, c), b)
-swapSnd = arr $ \ ((x, y), z) -> ((x, z), y)
+instance (ArrowZero a, Ord k) => ArrowZero (Memo k v a) where
+  zeroArrow = Memo zeroArrow
+
+instance (ArrowPlus a, Ord k) => ArrowPlus (Memo k v a) where
+  Memo f <+> Memo g = Memo (f <+> g)
 
 
-instance ArrowChoice a => ArrowChoice (Memo k v a) where
-  a +++ b = Memo $ proc (s, m) -> case s of
-    Left x -> first (arr Left) <<< memo a -< (x, m)
-    Right x -> first (arr Right) <<< memo b -< (x, m)
+instance (ArrowChoice a, Ord k) => ArrowChoice (Memo k v a) where
+  f +++ g = Memo $ proc (s, m) -> case s of
+    Left  x -> arr (first  Left) <<< memo f -< (x, m)
+    Right x -> arr (first Right) <<< memo g -< (x, m)
 
 
-instance ArrowApply a => ArrowApply (Memo k v a) where
+instance (ArrowApply a, Ord k) => ArrowApply (Memo k v a) where
   app = Memo $ arr (\ ((Memo f, x), s) -> (f, (x, s))) >>> app
 
