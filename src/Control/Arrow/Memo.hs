@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE TupleSections #-}
@@ -7,6 +8,7 @@
 module Control.Arrow.Memo where
 
 import Control.Arrow
+import Control.Arrow.Select
 import Control.Arrow.Transformer
 import Control.Category
 import Control.Lens
@@ -15,6 +17,39 @@ import Data.Foldable
 import Data.Map (Map, difference, member, lookup, insert, union)
 
 import Prelude hiding (id, (.), null, lookup)
+
+
+
+parallel :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
+parallel f = vista f f
+
+
+vista :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> Lens' c (f c) -> a b c -> a b c
+vista descend ascend act = proc b -> do
+  (c, cs) <- act *** select (vista descend ascend act) -< (b, b ^. descend)
+  returnA -< c & ascend .~ cs
+
+
+dag
+  :: (ArrowChoice a, ArrowSelect f (Memo k b a), Foldable f, Ord k)
+  => (b -> k) -> Lens' b (f b) -> a b b
+  -> a b b
+dag color descend act = arr (, mempty) >>> memo (focus color descend act) >>> arr fst
+
+focus
+  :: (ArrowChoice a, ArrowSelect f (Memo k b a), Foldable f, Ord k)
+  => (b -> k) -> Lens' b (f b) -> a b b
+  -> Memo k b a b b
+focus color descend act = proc b -> do
+  sequential $ memoize <<< lift (select act) -< layers color descend b
+  hierarchical descend $ reflect color act -< b
+
+
+hierarchical :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
+hierarchical descend act = proc b -> do
+  models <- select $ hierarchical descend act -< b ^. descend
+  act -< b & descend .~ models
+
 
 
 leaves :: (Foldable f, Ord k) => (b -> k) -> Lens' b (f b) -> b -> Map k b -> Map k b
@@ -43,12 +78,12 @@ recall :: Arrow a => Memo k b a () (Map k b)
 recall = Memo $ arr $ \ (_, s) -> (s, s)
 
 
-reflect :: (ArrowChoice a, Ord k) => (b -> k) -> Memo k c a b c -> Memo k c a b c
+reflect :: (ArrowChoice a, Ord k) => (b -> k) -> a b c -> Memo k c a b c
 reflect color act = proc b -> do
   m <- recall -< ()
   case color b `lookup` m of
-    Just  c -> returnA -< c
-    Nothing -> act -< b
+    Just c -> returnA -< c
+    Nothing -> lift act -< b
 
 
 instance (Arrow a, Ord k) => ArrowTransformer (Memo k v) a where

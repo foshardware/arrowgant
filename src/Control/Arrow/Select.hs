@@ -1,15 +1,10 @@
 {-# LANGUAGE Arrows #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ParallelListComp #-}
 
 module Control.Arrow.Select where
 
 import Control.Arrow
-import Control.Arrow.Memo
 import Control.Arrow.Transformer
 import Control.Lens
 import Data.Foldable
@@ -18,38 +13,6 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-
-
-
-parallel :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
-parallel f = vista f f
-
-
-vista :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> Lens' c (f c) -> a b c -> a b c
-vista descend ascend act = proc b -> do
-  (c, cs) <- act *** select (vista descend ascend act) -< (b, b ^. descend)
-  returnA -< c & ascend .~ cs
-
-
-dag
-  :: (ArrowChoice a, ArrowSelect f (Memo k b a), Foldable f, Ord k)
-  => (b -> k) -> Lens' b (f b) -> a b b
-  -> a b b
-dag color descend act = arr (, mempty) >>> memo (focus color descend act) >>> arr fst
-
-focus
-  :: (ArrowChoice a, ArrowSelect f (Memo k b a), Foldable f, Ord k)
-  => (b -> k) -> Lens' b (f b) -> a b b
-  -> Memo k b a b b
-focus color descend act = proc b -> do
-  sequential $ memoize <<< lift (select act) -< layers color descend b
-  hierarchical descend $ reflect color (lift act) -< b
-
-
-hierarchical :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
-hierarchical descend act = proc b -> do
-  models <- select $ hierarchical descend act -< b ^. descend
-  act -< b & descend .~ models
 
 
 
