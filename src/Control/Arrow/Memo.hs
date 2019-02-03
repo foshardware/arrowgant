@@ -61,8 +61,8 @@ leaves (DAG color _) b m
 leaves (DAG color descend) b m
   | b ^. descend & all (\ c -> color c `member` m)
   = insert (color b) b m
-leaves (DAG color descend) b m
-  = foldr (leaves $ DAG color descend) m (b ^. descend)
+leaves arrows@(DAG _ descend) b m
+  = foldr (leaves arrows) m (b ^. descend)
 
 layers :: Ord k => DAG k b -> b -> [Map k b]
 layers arrows b
