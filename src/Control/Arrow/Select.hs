@@ -1,6 +1,7 @@
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Control.Arrow.Select where
 
@@ -14,6 +15,12 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 
+
+
+hierarchical :: (ArrowChoice a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
+hierarchical descend act = proc b -> do
+  models <- select $ hierarchical descend act -< b ^. descend
+  act -< b & descend .~ models
 
 
 class ArrowSelect f a where

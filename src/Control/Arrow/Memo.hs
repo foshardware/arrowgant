@@ -14,7 +14,7 @@ import Control.Category
 import Control.Lens
 
 import Data.Foldable
-import Data.Map (Map, difference, member, lookup, insert, union)
+import Data.Map (Map, (!), difference, member, lookup, insert, union)
 
 import Prelude hiding (id, (.), null, lookup)
 
@@ -30,60 +30,51 @@ vista descend ascend act = proc b -> do
   returnA -< c & ascend .~ cs
 
 
-dag
-  :: (ArrowChoice a, ArrowSelect f (Memo k b a), Foldable f, Ord k)
-  => (b -> k) -> Lens' b (f b) -> a b b
-  -> a b b
-dag color descend act = arr (, mempty) >>> memo (focus color descend act) >>> arr fst
+data DAG k b = DAG (b -> k) (Lens' b (Map k b))
 
-focus
-  :: (ArrowChoice a, ArrowSelect f (Memo k b a), Foldable f, Ord k)
-  => (b -> k) -> Lens' b (f b) -> a b b
-  -> Memo k b a b b
-focus color descend act = proc b -> do
-  sequential $ memoize <<< lift (select act) -< layers color descend b
-  hierarchical descend $ reflect color act -< b
+rosetree :: ArrowChoice a => Lens' b (Map k b) -> a b b -> a b b
+rosetree = hierarchical
 
+dag :: (ArrowChoice a, Ord k) => DAG k b -> a b b -> a b b
+dag arrows act = proc b -> do
+  (c, _) <- memo $ focus arrows act -< ((b, layers arrows b), mempty)
+  returnA -< c
 
-hierarchical :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
-hierarchical descend act = proc b -> do
-  models <- select $ hierarchical descend act -< b ^. descend
-  act -< b & descend .~ models
+focus :: (ArrowChoice a, Ord k) => DAG k b -> a b b -> Memo k b a (b, [Map k b]) b
+focus arrows act = proc (b, com) -> case com of
+  []     -> returnA -< b
+  x : xs -> do
+    next <- adjust arrows ^<< memoize <<< lift (select act) -< x
+    focus arrows act -< (next b, fmap next <$> xs)
 
+adjust :: Ord k => DAG k b -> Map k b -> b -> b
+adjust (DAG color descend) m b
+  | Just c <- color b `lookup` m = c
+adjust (DAG color descend) m b
+  = b & descend %~ fmap (DAG color descend `adjust` m)
 
-
-leaves :: (Foldable f, Ord k) => (b -> k) -> Lens' b (f b) -> b -> Map k b -> Map k b
-leaves color       _ b m
+leaves :: Ord k => DAG k b -> b -> Map k b -> Map k b
+leaves (DAG color _) b m
   | color b `member` m = m
-leaves color descend b m
+leaves (DAG color descend) b m
   | b ^. descend & all (\ c -> color c `member` m)
   = insert (color b) b m
-leaves color descend b m
-  = foldr (leaves color descend) m (b ^. descend)
+leaves (DAG color descend) b m
+  = foldr (leaves $ DAG color descend) m (b ^. descend)
 
-
-layers :: (Foldable f, Ord k) => (b -> k) -> Lens' b (f b) -> b -> [Map k b]
-layers color descend b
+layers :: Ord k => DAG k b -> b -> [Map k b]
+layers arrows b
   = takeWhile (not . null) $ zipWith difference xs (mempty : xs)
-  where xs = iterate (leaves color descend b) (leaves color descend b mempty)
-
+  where xs = iterate (leaves arrows b) (leaves arrows b mempty)
 
 
 newtype Memo k v a b c = Memo { memo :: a (b, Map k v) (c, Map k v) }
 
-memoize :: (Arrow a, Ord k) => Memo k v a (Map k v) ()
-memoize = Memo $ arr $ \ (b, m) -> ((), union b m)
+memoize :: (Arrow a, Ord k) => Memo k v a (Map k v) (Map k v)
+memoize = Memo $ arr $ \ (b, m) -> (union b m, union b m)
 
 recall :: Arrow a => Memo k b a () (Map k b)
 recall = Memo $ arr $ \ (_, s) -> (s, s)
-
-
-reflect :: (ArrowChoice a, Ord k) => (b -> k) -> a b c -> Memo k c a b c
-reflect color act = proc b -> do
-  m <- recall -< ()
-  case color b `lookup` m of
-    Just c -> returnA -< c
-    Nothing -> lift act -< b
 
 
 instance (Arrow a, Ord k) => ArrowTransformer (Memo k v) a where
