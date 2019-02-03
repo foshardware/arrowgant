@@ -17,12 +17,6 @@ import qualified Data.Set as Set
 
 
 
-hierarchical :: (ArrowChoice a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
-hierarchical descend act = proc b -> do
-  models <- select $ hierarchical descend act -< b ^. descend
-  act -< b & descend .~ models
-
-
 class ArrowSelect f a where
   select :: a b c -> a (f b) (f c)
 

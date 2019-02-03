@@ -32,8 +32,10 @@ vista descend ascend act = proc b -> do
 
 data DAG k b = DAG (b -> k) (Lens' b (Map k b))
 
-rosetree :: ArrowChoice a => Lens' b (Map k b) -> a b b -> a b b
-rosetree = hierarchical
+rosetree :: (ArrowChoice a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
+rosetree descend act = proc b -> do
+  models <- select $ rosetree descend act -< b ^. descend
+  act -< b & descend .~ models
 
 dag :: (ArrowChoice a, Ord k) => DAG k b -> a b b -> a b b
 dag arrows act = proc b -> do
