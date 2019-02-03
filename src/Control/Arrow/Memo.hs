@@ -14,7 +14,7 @@ import Control.Category
 import Control.Lens
 
 import Data.Foldable
-import Data.Map (Map, (!), difference, member, lookup, insert, union)
+import Data.Map (Map, difference, member, lookup, insert, union)
 
 import Prelude hiding (id, (.), null, lookup)
 
@@ -48,10 +48,10 @@ focus arrows act = proc (b, com) -> case com of
     focus arrows act -< (next b, fmap next <$> xs)
 
 adjust :: Ord k => DAG k b -> Map k b -> b -> b
-adjust (DAG color descend) m b
+adjust (DAG color _) m b
   | Just c <- color b `lookup` m = c
-adjust (DAG color descend) m b
-  = b & descend %~ fmap (DAG color descend `adjust` m)
+adjust arrows@(DAG _ descend) m b
+  = b & descend %~ fmap (adjust arrows m)
 
 leaves :: Ord k => DAG k b -> b -> Map k b -> Map k b
 leaves (DAG color _) b m
@@ -71,7 +71,7 @@ layers arrows b
 newtype Memo k v a b c = Memo { memo :: a (b, Map k v) (c, Map k v) }
 
 memoize :: (Arrow a, Ord k) => Memo k v a (Map k v) (Map k v)
-memoize = Memo $ arr $ \ (b, m) -> (union b m, union b m)
+memoize = Memo $ arr $ \ (b, m) -> (b, union b m)
 
 recall :: Arrow a => Memo k b a () (Map k b)
 recall = Memo $ arr $ \ (_, s) -> (s, s)
