@@ -17,6 +17,8 @@ import Data.Map (Map, toAscList, fromDistinctAscList)
 class ArrowSelect f a where
   select :: a b c -> a (f b) (f c)
 
+-- instance Functor f => ArrowSelect f (->) where
+--   select = fmap
 
 instance Arrow a => ArrowSelect ((,) b) a where
   select = second
