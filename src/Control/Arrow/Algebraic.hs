@@ -7,6 +7,7 @@
 module Control.Arrow.Algebraic where
 
 import Control.Arrow
+import Control.Arrow.Select
 import Control.Arrow.Transformer
 import Control.Category
 import Control.Monad.Writer (Writer, tell, runWriter)
@@ -133,6 +134,9 @@ instance Arrow (Algebraic a) where
   first  = Fst
   second = Snd
   (***) = Split
+
+instance ArrowSelect a => ArrowSelect (Algebraic a) where
+  select = lift . select . algebraic
 
 instance ArrowZero a => ArrowZero (Algebraic a) where
   zeroArrow = lift zeroArrow
