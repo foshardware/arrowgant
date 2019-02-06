@@ -20,11 +20,11 @@ import Prelude hiding (id, (.), null, lookup)
 
 
 
-parallel :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
+parallel :: (Arrow a, ArrowSelect a, Traversable f) => Lens' b (f b) -> a b b -> a b b
 parallel f = vista f f
 
 
-vista :: (Arrow a, ArrowSelect f a) => Lens' b (f b) -> Lens' c (f c) -> a b c -> a b c
+vista :: (Arrow a, ArrowSelect a, Traversable f) => Lens' b (f b) -> Lens' c (f c) -> a b c -> a b c
 vista descend ascend act = proc b -> do
   (c, cs) <- act *** select (vista descend ascend act) -< (b, b ^. descend)
   returnA -< c & ascend .~ cs
@@ -32,17 +32,17 @@ vista descend ascend act = proc b -> do
 
 data DAG k b = DAG (b -> k) (Lens' b (Map k b))
 
-rosetree :: (ArrowChoice a, ArrowSelect f a) => Lens' b (f b) -> a b b -> a b b
+rosetree :: (ArrowSelect a, Traversable f) => Lens' b (f b) -> a b b -> a b b
 rosetree descend act = proc b -> do
   models <- select $ rosetree descend act -< b ^. descend
   act -< b & descend .~ models
 
-dag :: (ArrowChoice a, Ord k) => DAG k b -> a b b -> a b b
+dag :: (ArrowChoice a, ArrowSelect a, Ord k) => DAG k b -> a b b -> a b b
 dag arrows act = proc b -> do
   (c, _) <- memo $ focus arrows act -< ((b, layers arrows b), mempty)
   returnA -< c
 
-focus :: (ArrowChoice a, Ord k) => DAG k b -> a b b -> Memo k b a (b, [Map k b]) b
+focus :: (ArrowChoice a, ArrowSelect a, Ord k) => DAG k b -> a b b -> Memo k b a (b, [Map k b]) b
 focus arrows act = proc (b, com) -> case com of
   []     -> returnA -< b
   x : xs -> do
