@@ -138,6 +138,9 @@ instance Arrow (Algebraic a) where
 instance ArrowSelect a => ArrowSelect (Algebraic a) where
   select = lift . select . algebraic
 
+instance ArrowRace a => ArrowRace (Algebraic a) where
+  f /// g = lift (algebraic f /// algebraic g)
+
 instance ArrowZero a => ArrowZero (Algebraic a) where
   zeroArrow = lift zeroArrow
 
