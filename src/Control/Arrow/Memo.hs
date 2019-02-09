@@ -14,7 +14,7 @@ import Control.Category
 import Control.Lens
 
 import Data.Foldable
-import Data.Map (Map, difference, member, lookup, insert, union)
+import Data.Map (Map, (\\), difference, member, lookup, insert, union)
 
 import Prelude hiding (id, (.), null, lookup)
 
@@ -38,42 +38,41 @@ rosetree descend act = proc b -> do
   act -< b & descend .~ models
 
 dag :: (ArrowChoice a, ArrowSelect a, Ord k) => DAG k b -> a b b -> a b b
-dag arrows act = proc b -> do
-  (c, _) <- memo $ focus arrows act -< ((b, layers arrows b), mempty)
-  returnA -< c
+dag arrows act = id &&& pile arrows ^>> focus arrows act
 
-focus :: (ArrowChoice a, ArrowSelect a, Ord k) => DAG k b -> a b b -> Memo k b a (b, [Map k b]) b
+focus :: (ArrowChoice a, ArrowSelect a, Ord k) => DAG k b -> a b b -> a (b, [Map k b]) b
 focus arrows act = proc (b, com) -> case com of
   []     -> returnA -< b
   x : xs -> do
-    next <- adjust arrows ^<< memoize <<< lift (select act) -< x
+    next <- tweak arrows ^<< select act -< x
     focus arrows act -< (next b, fmap next <$> xs)
 
-adjust :: Ord k => DAG k b -> Map k b -> b -> b
-adjust (DAG color _) m b
+tweak :: Ord k => DAG k b -> Map k b -> b -> b
+tweak (DAG color _) m b
   | Just c <- color b `lookup` m = c
-adjust arrows@(DAG _ descend) m b
-  = b & descend %~ fmap (adjust arrows m)
+tweak arrows@(DAG _ descend) m b
+  = b & descend %~ fmap (tweak arrows m)
+
+pile :: Ord k => DAG k b -> b -> [Map k b]
+pile arrows b
+  = takeWhile (not . null) $ zipWith difference xs (mempty : xs)
+  where xs = iterate (leaves arrows b) (leaves arrows b mempty)
 
 leaves :: Ord k => DAG k b -> b -> Map k b -> Map k b
 leaves (DAG color _) b m
   | color b `member` m = m
 leaves (DAG color descend) b m
-  | b ^. descend & all (\ c -> color c `member` m)
+  | null $ view descend b \\ m
   = insert (color b) b m
 leaves arrows@(DAG _ descend) b m
-  = foldr (leaves arrows) m (b ^. descend)
+  = foldr (leaves arrows) m (view descend b)
 
-layers :: Ord k => DAG k b -> b -> [Map k b]
-layers arrows b
-  = takeWhile (not . null) $ zipWith difference xs (mempty : xs)
-  where xs = iterate (leaves arrows b) (leaves arrows b mempty)
 
 
 newtype Memo k v a b c = Memo { memo :: a (b, Map k v) (c, Map k v) }
 
-memoize :: (Arrow a, Ord k) => Memo k v a (Map k v) (Map k v)
-memoize = Memo $ arr $ \ (b, m) -> (b, union b m)
+memoize :: (Arrow a, Ord k) => Memo k v a (Map k v) ()
+memoize = Memo $ arr $ \ (b, m) -> ((), union b m)
 
 recall :: Arrow a => Memo k b a () (Map k b)
 recall = Memo $ arr $ \ (_, s) -> (s, s)
