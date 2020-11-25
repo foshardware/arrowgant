@@ -1,4 +1,4 @@
 .stack-work/
-arrowgant.cabal
+stack.yaml.lock
 *.prof
 *~
