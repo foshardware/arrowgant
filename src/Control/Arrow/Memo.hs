@@ -14,7 +14,8 @@ import Control.Category
 import Control.Lens
 
 import Data.Foldable
-import Data.Map (Map, (\\), difference, member, lookup, insert, union)
+import Data.Hashable
+import Data.HashMap.Lazy (HashMap, difference, member, lookup, insert, union)
 
 import Prelude hiding (id, (.), null, lookup)
 
@@ -30,35 +31,40 @@ vista descend ascend act = proc b -> do
   returnA -< c & ascend .~ cs
 
 
-data DAG k b = DAG (b -> k) (Lens' b (Map k b))
+(\\) :: (Eq k, Hashable k) => HashMap k v -> HashMap k v -> HashMap k v
+(\\) = difference
+infixl 9 \\
+
+
+data DAG k b = DAG (b -> k) (Lens' b (HashMap k b))
 
 rosetree :: (ArrowSelect a, Traversable f) => Lens' b (f b) -> a b b -> a b b
 rosetree descend act = proc b -> do
   models <- select $ rosetree descend act -< b ^. descend
   act -< b & descend .~ models
 
-dag :: (ArrowChoice a, ArrowSelect a, Ord k) => DAG k b -> a b b -> a b b
+dag :: (ArrowChoice a, ArrowSelect a, Eq k, Hashable k) => DAG k b -> a b b -> a b b
 dag arrows act = id &&& pile arrows ^>> focus arrows act
 
-focus :: (ArrowChoice a, ArrowSelect a, Ord k) => DAG k b -> a b b -> a (b, [Map k b]) b
+focus :: (ArrowChoice a, ArrowSelect a, Eq k, Hashable k) => DAG k b -> a b b -> a (b, [HashMap k b]) b
 focus arrows act = proc (b, com) -> case com of
   []     -> returnA -< b
   x : xs -> do
     next <- tweak arrows ^<< select act -< x
     focus arrows act -< (next b, fmap next <$> xs)
 
-tweak :: Ord k => DAG k b -> Map k b -> b -> b
+tweak :: (Eq k, Hashable k) => DAG k b -> HashMap k b -> b -> b
 tweak (DAG color _) m b
   | Just c <- color b `lookup` m = c
 tweak arrows@(DAG _ descend) m b
   = b & descend %~ fmap (tweak arrows m)
 
-pile :: Ord k => DAG k b -> b -> [Map k b]
+pile :: (Eq k, Hashable k) => DAG k b -> b -> [HashMap k b]
 pile arrows b
   = takeWhile (not . null) $ zipWith difference xs (mempty : xs)
   where xs = iterate (leaves arrows b) (leaves arrows b mempty)
 
-leaves :: Ord k => DAG k b -> b -> Map k b -> Map k b
+leaves :: (Eq k, Hashable k) => DAG k b -> b -> HashMap k b -> HashMap k b
 leaves (DAG color _) b m
   | color b `member` m = m
 leaves (DAG color descend) b m
@@ -69,16 +75,16 @@ leaves arrows@(DAG _ descend) b m
 
 
 
-newtype Memo k v a b c = Memo { memo :: a (b, Map k v) (c, Map k v) }
+newtype Memo k v a b c = Memo { memo :: a (b, HashMap k v) (c, HashMap k v) }
 
-memoize :: (Arrow a, Ord k) => Memo k v a (Map k v) ()
+memoize :: (Arrow a, Eq k, Hashable k) => Memo k v a (HashMap k v) ()
 memoize = Memo $ arr $ \ (b, m) -> ((), union b m)
 
-recall :: Arrow a => Memo k b a () (Map k b)
+recall :: Arrow a => Memo k b a () (HashMap k b)
 recall = Memo $ arr $ \ (_, s) -> (s, s)
 
 
-instance (Arrow a, Ord k) => ArrowTransformer (Memo k v) a where
+instance (Arrow a, Eq k, Hashable k) => ArrowTransformer (Memo k v) a where
   lift = Memo . first
 
 
@@ -87,7 +93,7 @@ instance Category a => Category (Memo k v a) where
   Memo x . Memo y = Memo (x . y)
 
 
-instance (Arrow a, Ord k) => Arrow (Memo k v a) where
+instance (Arrow a, Eq k, Hashable k) => Arrow (Memo k v a) where
 
   arr = Memo . arr . first
 
@@ -104,19 +110,19 @@ instance (Arrow a, Ord k) => Arrow (Memo k v a) where
     returnA -< ((x', y'), union m' m'')
 
 
-instance (ArrowZero a, Ord k) => ArrowZero (Memo k v a) where
+instance (ArrowZero a, Eq k, Hashable k) => ArrowZero (Memo k v a) where
   zeroArrow = Memo zeroArrow
 
-instance (ArrowPlus a, Ord k) => ArrowPlus (Memo k v a) where
+instance (ArrowPlus a, Eq k, Hashable k) => ArrowPlus (Memo k v a) where
   Memo f <+> Memo g = Memo (f <+> g)
 
 
-instance (ArrowChoice a, Ord k) => ArrowChoice (Memo k v a) where
+instance (ArrowChoice a, Eq k, Hashable k) => ArrowChoice (Memo k v a) where
   f +++ g = Memo $ proc (x, m) -> do
     k <- memo f +++ memo g -< x & (, m) +++ (, m)
     returnA -< (k & fst +++ fst, k & snd ||| snd)
 
 
-instance (ArrowApply a, Ord k) => ArrowApply (Memo k v a) where
+instance (ArrowApply a, Eq k, Hashable k) => ArrowApply (Memo k v a) where
   app = Memo $ arr (\ ((Memo f, x), s) -> (f, (x, s))) >>> app
 

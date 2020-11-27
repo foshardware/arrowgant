@@ -1,5 +1,5 @@
 name:                arrowgant
-version:             0.1.1.2
+version:             0.2.0.0
 github:              "foshardware/arrowgant"
 license:             BSD3
 author:              "Andreas Westerwick"
@@ -13,9 +13,10 @@ extra-source-files:
 dependencies:
 - base >= 4.7 && < 5
 - arrows
-- containers
-- mtl
+- hashable
 - lens
+- mtl
+- unordered-containers
 - vector
 
 library:
