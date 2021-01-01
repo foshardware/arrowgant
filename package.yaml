@@ -1,5 +1,5 @@
 name:                arrowgant
-version:             0.2.0.0
+version:             0.2.0.1
 github:              "foshardware/arrowgant"
 license:             BSD3
 author:              "Andreas Westerwick"
@@ -11,27 +11,30 @@ extra-source-files:
 - ChangeLog.md
 
 dependencies:
+- arrows
 - base >= 4.7 && < 5
 - arrows
 - hashable
 - lens
 - mtl
+- tasty
+- tasty-hunit
 - unordered-containers
 - vector
 
 library:
   source-dirs: src
+  ghc-options:
+  - -Wall
+  - -O2
 
 tests:
   arrowgant-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
+    - -O
     - -threaded
     - -rtsopts
-    - -with-rtsopts=-N
     dependencies:
     - arrowgant
-    - arrows
-    - tasty
-    - tasty-hunit
