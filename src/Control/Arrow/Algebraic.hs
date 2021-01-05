@@ -1,10 +1,16 @@
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Control.Arrow.Algebraic where
+
+#if MIN_VERSION_base(4,10,0)
+#else
+import Data.Semigroup (Semigroup, (<>))
+#endif
 
 import Control.Arrow
 import Control.Arrow.Select
