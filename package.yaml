@@ -12,7 +12,7 @@ extra-source-files:
 
 dependencies:
 - arrows
-- base >= 4.9.2 && < 5
+- base >= 4.9.1 && < 5
 - arrows
 - hashable
 - lens

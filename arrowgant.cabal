@@ -34,7 +34,7 @@ library
   ghc-options: -Wall -O2
   build-depends:
       arrows
-    , base >=4.9.2 && <5
+    , base >=4.9.1 && <5
     , hashable
     , lens
     , mtl
@@ -55,7 +55,7 @@ test-suite arrowgant-test
   build-depends:
       arrowgant
     , arrows
-    , base >=4.9.2 && <5
+    , base >=4.9.1 && <5
     , hashable
     , lens
     , mtl
